@@ -1,0 +1,36 @@
+# ==== STM32CubeIDE / Eclipse ====
+.metadata/
+.mxproject
+.settings/
+*.launch
+
+# ==== Build outputs ====
+/Debug/
+/Release/
+/build/
+cmake-build-*/
+
+# ==== Compilación / linking ====
+*.o
+*.d
+*.su
+*.cyclo
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+*.eep
+*.axf
+*.out
+*.a
+*.bak
+*.log
+
+# ==== Editor / SO ====
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*~
+*.swp
