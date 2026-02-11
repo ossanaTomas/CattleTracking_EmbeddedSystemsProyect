@@ -22,19 +22,71 @@ GPS_t GPS;
 GPS_GGA GGA;
 GPS_RMC RMC;
 
-ubx_ack_result_t valor_checkeo;
+int count_confRate_5hz = 0;
+int count_conf = 0;
+int count_confgsa_5hz = 0;
+
+
 
 void GPS_Init()
 {
-	 valor_checkeo = ubx_send_body_wait_ack(GPS_USART, UBX_CFGRATE_5HZ, sizeof(UBX_CFGRATE_5HZ), 200, 1200);
-	ubx_send_body_wait_ack(GPS_USART, UBX_CFGMSG_GLL_UART1_OFF_BODY, sizeof(UBX_CFGMSG_GLL_UART1_OFF_BODY), 500, 1200);
-	ubx_send_body_wait_ack(GPS_USART, UBX_CFGMSG_GSA_UART1_OFF_BODY, sizeof(UBX_CFGMSG_GSA_UART1_OFF_BODY), 500, 1200);
-	ubx_send_body_wait_ack(GPS_USART, UBX_CFGMSG_GSV_UART1_OFF_BODY, sizeof(UBX_CFGMSG_GSV_UART1_OFF_BODY), 500, 1200);
-	ubx_send_body_wait_ack(GPS_USART, UBX_CFGMSG_VTG_UART1_OFF_BODY, sizeof(UBX_CFGMSG_VTG_UART1_OFF_BODY), 500, 1200);
-	ubx_send_body_wait_ack(GPS_USART, UBX_CFGMSG_GGA_UART1_ON_BODY, sizeof(UBX_CFGMSG_GGA_UART1_ON_BODY), 500, 1200);
-	ubx_send_body_wait_ack(GPS_USART, UBX_CFGMSG_RMC_UART1_ON_BODY, sizeof(UBX_CFGMSG_RMC_UART1_ON_BODY), 500, 1200);
 
-	//uart_receive_enabled=1;
+	ubx_status_t s;
+
+	    s = gps_send_cfg_retry(GPS_USART, UBX_CFGRATE_5HZ, sizeof(UBX_CFGRATE_5HZ),
+	                           2, 200, 1200);
+	    if (s != UBX_OK) {
+	    	count_conf++;
+	    }
+
+	    s =gps_send_cfg_retry(GPS_USART, UBX_CFGMSG_GLL_UART1_OFF_BODY, sizeof(UBX_CFGMSG_GLL_UART1_OFF_BODY), 2, 500, 1200);
+	    if (s != UBX_OK) {
+	    	count_conf++;
+	    }
+	    s =gps_send_cfg_retry(GPS_USART, UBX_CFGMSG_GSA_UART1_OFF_BODY, sizeof(UBX_CFGMSG_GSA_UART1_OFF_BODY), 2, 500, 1200);
+	    if (s != UBX_OK) {
+	    	count_conf++;
+	    }
+	    s =gps_send_cfg_retry(GPS_USART, UBX_CFGMSG_GSV_UART1_OFF_BODY, sizeof(UBX_CFGMSG_GSV_UART1_OFF_BODY), 2, 500, 1200);
+	    if (s != UBX_OK) {
+	    	count_conf++;
+	    }
+	    s =gps_send_cfg_retry(GPS_USART, UBX_CFGMSG_VTG_UART1_OFF_BODY, sizeof(UBX_CFGMSG_VTG_UART1_OFF_BODY), 2, 500, 1200);
+	    if (s != UBX_OK) {
+	    	count_conf++;
+	    }
+
+	    s = gps_send_cfg_retry(GPS_USART, UBX_CFGMSG_GGA_UART1_ON_BODY, sizeof(UBX_CFGMSG_GGA_UART1_ON_BODY), 2, 500, 1200);
+	    if (s != UBX_OK) {
+	    	count_conf++;
+	    }
+
+	    s = gps_send_cfg_retry(GPS_USART, UBX_CFGMSG_RMC_UART1_ON_BODY, sizeof(UBX_CFGMSG_RMC_UART1_ON_BODY), 2, 500, 1200);
+	    if (s != UBX_OK) {
+	  	    	count_conf++;
+	  	    }
+
+	    // 4) NAV5 (recomendado)
+	    s = gps_send_cfg_retry(GPS_USART, UBX_CFGNAV5_CATTLE_BODY, sizeof(UBX_CFGNAV5_CATTLE_BODY),
+	                             2, 500, 1200);
+	    if (s != UBX_OK) {
+	  	    	count_conf++;
+	  	    }
+
+
+	    if (count_conf>1){
+	    	for(int i=0; i<100; i++){
+	    		HAL_GPIO_TogglePin(GPIOD, LED_Pin);
+	    		HAL_Delay(50);
+	    	 }
+	    	}
+	    // 5) Guardar en BBR (no crítico; darle más tiempo)
+	   // (void)gps_send_cfg_retry(GPS_USART, UBX_CFGCFG_SAVE_ALL_BBR, sizeof(UBX_CFGCFG_SAVE_ALL_BBR),  1, 500, 3000);
+
+	    // 6) recién ahora habilitás RX IT para NMEA
+	    HAL_UART_Receive_IT(GPS_USART, &rx_data, 1);
+
+	//uart_receive_enabl	ed=1;
 	//HAL_NVIC_EnableIRQ(USART1_IRQn);
 	HAL_UART_Receive_IT(GPS_USART, &rx_data, 1);
 }
@@ -151,9 +203,6 @@ float GPS_nmea_to_dec(float deg_coord, char nsew) { // el formato NMEA se presen
 
 // Funciones de utils que a lo mejor voy a necesitar:
 
-
-
-
 static void GPS_PauseRx(UART_HandleTypeDef *huart)
 {
     // Detiene la recepción por interrupción que estaba armada con HAL_UART_Receive_IT()
@@ -162,12 +211,12 @@ static void GPS_PauseRx(UART_HandleTypeDef *huart)
     // Limpia Overrun Error si ocurrió (depende de familia; en F1 suele bastar con leer SR/DR)
     __HAL_UART_CLEAR_OREFLAG(huart);
 
-    // Si querés ser más “seguro”, también podés limpiar flags generales:
+    // limpiar flags generales:
     __HAL_UART_CLEAR_PEFLAG(huart);
     __HAL_UART_CLEAR_FEFLAG(huart);
     __HAL_UART_CLEAR_NEFLAG(huart);
 
-    // Reseteá tu parser NMEA (evita mezclar basura/bytes perdidos)
+    // Reseteá tu parser NMEA
     rx_index = 0;
     memset(rx_buffer, 0, sizeof(rx_buffer));
 }
@@ -183,8 +232,8 @@ void GPS_ApplyUbxConfig_Runtime(UART_HandleTypeDef *huart)
     GPS_PauseRx(huart);
 
     // Mandás configs y esperás ACK (opcional, pero vos querés siempre validar)
-    ubx_ack_result_t r1 = ubx_send_body_wait_ack(huart, UBX_CFGMSG_GGA_UART1_ON_BODY, sizeof(UBX_CFGMSG_GGA_UART1_ON_BODY), 200, 1200);
-    ubx_ack_result_t r2 = ubx_send_body_wait_ack(huart, UBX_CFGMSG_RMC_UART1_ON_BODY, sizeof(UBX_CFGMSG_RMC_UART1_ON_BODY), 200, 1200);
+    ubx_status_t r1 = ubx_send_body_wait_ack(huart, UBX_CFGMSG_GGA_UART1_ON_BODY, sizeof(UBX_CFGMSG_GGA_UART1_ON_BODY), 200, 1200);
+    ubx_status_t r2 = ubx_send_body_wait_ack(huart, UBX_CFGMSG_RMC_UART1_ON_BODY, sizeof(UBX_CFGMSG_RMC_UART1_ON_BODY), 200, 1200);
 
     // Acá tomás acciones correctivas según r1/r2 (reintento, log, fallback, etc.)
 
