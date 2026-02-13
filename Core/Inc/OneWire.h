@@ -71,6 +71,8 @@ typedef struct {
   uint8_t lastROM[8];//последний считанный ROM для поиска всех ROM
 } OneWire;
 
+//Skip ROM
+
 typedef struct {
 	int device;
 	char info[30];
