@@ -1,74 +1,73 @@
 /*
- * Service_temp.h
+ *sService_temp.h
  *
  *  Created on: Feb 12, 2026
  *      Author: Tomas Oss
+
+ * Servicio de temperatura: DS18B20 (1 sensor) + promedio de 3 muestras
+ * Política: promedio válido SOLO si 3/3 muestras OK
+ * .
  */
 
-
 #pragma once
+
+#include "stm32f1xx_hal.h"
+#include <stdint.h>
+#include <stdbool.h>
+
 #include "onewire_uart.h"
 #include "ds18b20.h"
 
-#define	TEMP_USART	&huart2
+#ifndef TEMP_SAMPLE_COUNT
+#define TEMP_SAMPLE_COUNT 3u
+#endif
 
-// ---- Instancias del driver
-static ow_uart_t   ow;
-static ds18b20_t   ds;
+// Status propio del servicio (incluye TIMEOUT duro)
+typedef enum {
+    TEMP_ST_OK = 0,
+    TEMP_ST_TIMEOUT,
+    TEMP_ST_NO_SENSOR,
+    TEMP_ST_UART,
+    TEMP_ST_CRC,
+    TEMP_ST_NOT_READY,
+    TEMP_ST_PARAM,
+    TEMP_ST_UNKNOWN
+} temp_status_t;
 
-// ---- Estructura para guardar resultados
 typedef struct {
-   uint32_t t_ms;             // timestamp simple (HAL_GetTick) o RTC si tenés
-   int32_t  temp_mC;          // 37250 => 37.250°C
-   ds18b20_status_t status;   // OK / CRC / OW / PARAM
+    uint32_t      t_ms;       // timestamp (HAL_GetTick)
+    int32_t       temp_mC;    // 37250 => 37.250°C (0 si inválida)
+    temp_status_t status;     // OK / TIMEOUT / CRC / ...
 } temp_sample_t;
 
-#define TEMP_LOG_N  3
-static temp_sample_t temp_log[TEMP_LOG_N];
-static uint16_t temp_log_wr = 0;
+typedef struct {
+    bool          avg_valid;                  // true SOLO si 3/3 OK
+    int32_t       avg_mC;                     // promedio en m°C si avg_valid, sino 0
+    uint8_t       valid_count;                // cantidad de muestras OK (0..3)
+    temp_status_t overall_status;             // OK o primer error encontrado
+    temp_sample_t samples[TEMP_SAMPLE_COUNT]; // detalle por muestra
+} temp_avg3_result_t;
 
-// ---- Helper: guardar muestra
-static void temp_log_push(ds18b20_status_t st, int32_t t_mC)
-{
-   temp_log[temp_log_wr].t_ms   = HAL_GetTick();
-   temp_log[temp_log_wr].temp_mC = t_mC;
-   temp_log[temp_log_wr].status  = st;
+// --- API ---
 
-   temp_log_wr = (temp_log_wr + 1) % TEMP_LOG_N;
-}
+/**
+ * Inicializa el servicio.
+ * - huart: USART configurada en Half-Duplex (single wire) para 1-Wire
+ * - res: resolución a configurar en el DS18B20 (9..12 bits)
+ */
+void TempService_Init(UART_HandleTypeDef *huart, ds18b20_resolution_t res);
 
-void Temp_Init(void)
-{
-   // 1) Init 1-wire sobre USART2 half-duplex
-   ow_uart_init(&ow, TEMP_USART, 5);
-
-   // 2) Init ds18b20
-   ds18b20_init(&ds, &ow, DS18B20_RES_10BIT);
-
-   // 3) Fijar resolución (recomendado)
-   (void)ds18b20_set_resolution(&ds, DS18B20_RES_10BIT);
-}
-
-void Temp_Read_Once_Blocking(void)
-{
-   int32_t t_mC = 0;
-
-   ds18b20_status_t st = ds18b20_start_conversion(&ds);
-   if (st != DS18B20_OK) {
-       temp_log_push(st, 0);
-       return;
-   }
-
-   // Espera hasta que termine (10-bit ~188ms; por simpleza podés esperar 300ms o 750ms)
-   while (!ds18b20_is_conversion_done(&ds, HAL_GetTick())) {
-       // si querés, podés dormir 1-5ms para no quemar CPU
-       HAL_Delay(1);
-   }
-
-   st = ds18b20_read_temperature_mC(&ds, &t_mC);
-   temp_log_push(st, (st == DS18B20_OK) ? t_mC : 0);
-}
+/**
+ * Toma 3 mediciones de temperatura y calcula promedio SOLO si 3/3 OK.
+ * Incluye timeout duro (nunca se cuelga).
+ * Devuelve true si se ejecutó la rutina (siempre que out != NULL).
+ */
+bool TempService_ReadAvg3_Blocking(temp_avg3_result_t *out);
 
 
+bool TempService_ReadOnce_Blocking(temp_sample_t *out);
 
-
+/**
+ * Último resultado guardado internamente (copia).
+ */
+temp_avg3_result_t TempService_GetLast(void);

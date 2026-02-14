@@ -47,7 +47,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+extern UART_HandleTypeDef huart2;
+temp_sample_t s;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -93,7 +94,7 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   GPS_Init();
-  Temp_Init();
+  TempService_Init(&huart2, DS18B20_RES_10BIT);
 
   /* USER CODE END 2 */
 
@@ -105,8 +106,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	HAL_GPIO_TogglePin(GPIOC, LED_Pin);
-	HAL_Delay(1);
-	Temp_Read_Once_Blocking();
+	TempService_ReadOnce_Blocking(&s);
 
   }
   /* USER CODE END 3 */
