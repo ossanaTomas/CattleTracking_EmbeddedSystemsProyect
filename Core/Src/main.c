@@ -17,12 +17,15 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+
 #include "main.h"
 #include "usart.h"
 #include "gpio.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "gps.h"
+#include "service_temp.h"
+
 
 /* USER CODE END Includes */
 
@@ -32,6 +35,7 @@
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
 
 /* USER CODE END PD */
 
@@ -43,7 +47,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+extern UART_HandleTypeDef huart2;
+temp_sample_t s;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -65,7 +70,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -87,9 +91,10 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
-  HAL_Delay(100);
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   GPS_Init();
+  TempService_Init(&huart2, DS18B20_RES_10BIT);
 
   /* USER CODE END 2 */
 
@@ -101,7 +106,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	HAL_GPIO_TogglePin(GPIOC, LED_Pin);
-	HAL_Delay(1000);
+	TempService_ReadOnce_Blocking(&s);
 
   }
   /* USER CODE END 3 */
