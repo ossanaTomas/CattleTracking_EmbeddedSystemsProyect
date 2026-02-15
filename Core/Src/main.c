@@ -17,14 +17,16 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-
 #include "main.h"
+#include "spi.h"
 #include "usart.h"
 #include "gpio.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "gps.h"
 #include "service_temp.h"
+#include "LoRa.h"
 
 
 /* USER CODE END Includes */
@@ -48,6 +50,8 @@
 
 /* USER CODE BEGIN PV */
 extern UART_HandleTypeDef huart2;
+LoRa myLoRa;
+uint16_t LoRa_stat=0;
 temp_sample_t s;
 /* USER CODE END PV */
 
@@ -90,11 +94,40 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_SPI1_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
+
   /* USER CODE BEGIN 2 */
   GPS_Init();
   TempService_Init(&huart2, DS18B20_RES_10BIT);
+
+	 myLoRa=newLoRa();
+
+	  myLoRa.CS_port         = NSS_GPIO_Port;
+	  myLoRa.CS_pin          = NSS_Pin;
+	  myLoRa.reset_port      = RST_GPIO_Port;
+	  myLoRa.reset_pin       = RST_Pin;
+	  myLoRa.DIO0_port       = DIO0_GPIO_Port;
+	  myLoRa.DIO0_pin        = DIO0_Pin;
+	  myLoRa.hSPIx           = &hspi1;
+
+	HAL_Delay(50);
+
+	LoRa_stat = 0;
+	for (int i = 0; i < 1; i++) {
+	    if (LoRa_init(&myLoRa) == LORA_OK) { LoRa_stat = 1; break; }
+	    HAL_Delay(50);
+	}
+
+
+   if (LoRa_stat != 1){
+	   while(1){
+
+	   }
+   }
+
+
 
   /* USER CODE END 2 */
 
@@ -106,7 +139,8 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	HAL_GPIO_TogglePin(GPIOC, LED_Pin);
-	TempService_ReadOnce_Blocking(&s);
+	HAL_Delay(1000);
+	//TempService_ReadOnce_Blocking(&s);
 
   }
   /* USER CODE END 3 */
@@ -129,7 +163,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL2;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -156,6 +190,19 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if(huart == &huart1) GPS_UART_CallBack();
 }
+
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+	//si se recibe una interrupcion del pin dio0, es que llego un mensaje
+	//lo guardo en el buffer y activo la flag para decodificarlo.
+	if (GPIO_Pin==DIO0_Pin){
+		//LoRa_receive(&myLoRa,RxBuffer,sizeof(Mytrama));
+		//FlagRecibir=1;
+	}
+
+}
+
+
 /* USER CODE END 0 */
 /* USER CODE END 4 */
 

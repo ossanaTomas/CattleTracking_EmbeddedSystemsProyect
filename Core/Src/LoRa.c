@@ -525,70 +525,79 @@ int LoRa_getRSSI(LoRa* _LoRa){
 
 		returns     : Nothing
 \* ----------------------------------------------------------------------------- */
-uint16_t LoRa_init(LoRa* _LoRa){
-	uint8_t    data;
-	uint8_t    read;
+uint16_t LoRa_init(LoRa* l)
+{
+    uint8_t read, data;
 
-	if(LoRa_isvalid(_LoRa)){
-		// goto sleep mode:
-			LoRa_gotoMode(_LoRa, SLEEP_MODE);
-			HAL_Delay(10);
+    if (!LoRa_isvalid(l)) return LORA_UNAVAILABLE;
 
-		// turn on LoRa mode:
-			read = LoRa_read(_LoRa, RegOpMode);
-			HAL_Delay(10);
-			data = read | 0x80;
-			LoRa_write(_LoRa, RegOpMode, data);
-			HAL_Delay(100);
+    // 0) Asegurar NSS idle en HIGH
+    HAL_GPIO_WritePin(l->CS_port, l->CS_pin, GPIO_PIN_SET);
+    HAL_Delay(2);
 
-		// set frequency:
-			LoRa_setFrequency(_LoRa, _LoRa->frequency);
+    // 1) Reset a estado conocido (datasheet: 100us low, esperar 5ms; acá tu reset es más conservador)
+    LoRa_reset(l);
 
-		// set output power gain:
-			LoRa_setPower(_LoRa, _LoRa->power);
+    // 2) Check temprano de RegVersion (0x42 debe ser 0x12)
+    for (int i = 0; i < 3; i++) {
+        read = LoRa_read(l, RegVersion);
+        if (read == 0x12) break;
+        HAL_Delay(10);
+        if (i == 2) return LORA_NOT_FOUND;
+    }
 
-		// set over current protection:
-			LoRa_setOCP(_LoRa, _LoRa->overCurrentProtection);
+    // 3) Entrar en SLEEP en LoRa + LowFrequency (433MHz)
+    // RegOpMode bits: [7]=LoRa, [3]=LowFrequencyModeOn, [2:0]=Mode
+    data = 0;
+    data |= 0x80;   // LongRangeMode = 1 (LoRa)
+    data |= 0x08;   // LowFrequencyModeOn = 1 (LF path)
+    data |= 0x00;   // Mode = 000 (SLEEP)
+    LoRa_write(l, RegOpMode, data);
+    HAL_Delay(5);
 
-		// set LNA gain:
-			LoRa_write(_LoRa, RegLna, 0x23);
+    // 4) Configuración básica (en SLEEP/STDBY)
+    LoRa_setFrequency(l, l->frequency);
+    LoRa_setPower(l, l->power);
+    LoRa_setOCP(l, l->overCurrentProtection);
 
-		// set spreading factor, CRC on, and Timeout Msb:
-			LoRa_setTOMsb_setCRCon(_LoRa);
-			LoRa_setSpreadingFactor(_LoRa, _LoRa->spredingFactor);
+    LoRa_write(l, RegLna, 0x23);
 
-		// set Timeout Lsb:
-			LoRa_write(_LoRa, RegSymbTimeoutL, 0xFF);
+    // SF + CRC + timeout
+    // Recomendado: limpiar flags antes
+    LoRa_write(l, RegIrqFlags, 0xFF);
 
-		// set bandwidth, coding rate and expilicit mode:
-			// 8 bit RegModemConfig --> | X | X | X | X | X | X | X | X |
-			//       bits represent --> |   bandwidth   |     CR    |I/E|
-			data = 0;
-			data = (_LoRa->bandWidth << 4) + (_LoRa->crcRate << 1);
-			LoRa_write(_LoRa, RegModemConfig1, data);
-			LoRa_setAutoLDO(_LoRa);
+    LoRa_setSpreadingFactor(l, l->spredingFactor);
 
-		// set preamble:
-			LoRa_write(_LoRa, RegPreambleMsb, _LoRa->preamble >> 8);
-			LoRa_write(_LoRa, RegPreambleLsb, _LoRa->preamble >> 0);
+    // CRC on + SymbTimeoutMSB=3 (si querés)
+    read = LoRa_read(l, RegModemConfig2);
+    read = (read & 0xF8) | 0x07;   // limpia bits 2:0 y los fuerza a 111 (incluye CRC ON)
+    LoRa_write(l, RegModemConfig2, read);
 
-		// DIO mapping:   --> DIO: RxDone
-			read = LoRa_read(_LoRa, RegDioMapping1);
-			data = read | 0x3F;
-			LoRa_write(_LoRa, RegDioMapping1, data);
+    LoRa_write(l, RegSymbTimeoutL, 0xFF);
 
-		// goto standby mode:
-			LoRa_gotoMode(_LoRa, STNBY_MODE);
-			_LoRa->current_mode = STNBY_MODE;
-			HAL_Delay(10);
+    // BW + CodingRate + Explicit header
+    data = (l->bandWidth << 4) | (l->crcRate << 1) | 0x00;
+    LoRa_write(l, RegModemConfig1, data);
 
-			read = LoRa_read(_LoRa, RegVersion);
-			if(read == 0x12)
-				return LORA_OK;
-			else
-				return LORA_NOT_FOUND;
-	}
-	else {
-		return LORA_UNAVAILABLE;
-	}
+    LoRa_setAutoLDO(l);
+
+    // Preamble
+    LoRa_write(l, RegPreambleMsb, (uint8_t)(l->preamble >> 8));
+    LoRa_write(l, RegPreambleLsb, (uint8_t)(l->preamble >> 0));
+
+    // SyncWord explícito (opcional, pero recomendable)
+    // 0x12 P2P / privado; 0x34 reservado LoRaWAN (según datasheet)
+    LoRa_write(l, RegSyncWord, 0x12);
+
+    // 5) DIO0 = RxDone (mapping 00), sin romper el resto
+    read = LoRa_read(l, RegDioMapping1);
+    read = (read & 0x3F) | (0x00 << 6);  // DIO0=00
+    LoRa_write(l, RegDioMapping1, read);
+
+    // 6) Ir a STDBY al final
+    LoRa_gotoMode(l, STNBY_MODE);
+    l->current_mode = STNBY_MODE;
+
+    return LORA_OK;
 }
+
