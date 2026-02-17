@@ -120,14 +120,14 @@ int main(void)
 	    HAL_Delay(50);
 	}
 
-
    if (LoRa_stat != 1){
 	   while(1){
 
 	   }
    }
 
-
+char transmitir[] = {'H','O','L','A'};
+char* payload ="Hola";
 
   /* USER CODE END 2 */
 
@@ -138,8 +138,11 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	HAL_GPIO_TogglePin(GPIOC, LED_Pin);
-	HAL_Delay(1000);
+
+	HAL_Delay(1500);
+	if(LoRa_transmit(&myLoRa, (uint8_t*)&payload, sizeof(payload), 1000)){
+		HAL_GPIO_TogglePin(GPIOC, LED_Pin);
+	}
 	//TempService_ReadOnce_Blocking(&s);
 
   }
