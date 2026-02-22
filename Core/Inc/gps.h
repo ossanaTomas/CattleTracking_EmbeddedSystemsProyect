@@ -60,6 +60,7 @@ typedef struct{
 	    float msl_altitude;
 	    char msl_units;
 
+	    int32_t utc_time_raw_x1e3;
 	    int32_t lat_raw_x1e4;
 	    int32_t lon_raw_x1e4;
 } GPS_GGA;
@@ -96,7 +97,8 @@ void save_config();
 
 
 void GPS_Init();
-
+void GPS_power_on();
+void GPS_power_off();
 void GPS_print_val(char *data, int value);
 void GPS_UART_CallBack();
 int GPS_validate(char *nmeastr);

@@ -115,7 +115,7 @@ bool msg_frame_pack_data_v1(const msg_hdr_t *hdr_base, const msg_data_pl_t *pl,
 
     uint8_t payload[MSG_DATA_PLEN_V1];
     // Layout LE
-    put_u32_le(&payload[0],  pl->t_ms);
+    put_u32_le(&payload[0],  pl->utc_time_raw_x1e4);
     put_i32_le(&payload[4],  pl->lat_raw_x1e4);
     put_i32_le(&payload[8],  pl->lon_raw_x1e4);
     payload[12] = pl->sats;

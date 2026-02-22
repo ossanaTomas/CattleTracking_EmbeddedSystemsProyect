@@ -98,6 +98,7 @@ typedef struct {
     // En PC se convierte a grados decimales o DMS para mostrar.
     int32_t  lat_raw_x1e4;
     int32_t  lon_raw_x1e4;
+    int32_t  utc_time_raw_x1e4;
     uint8_t  sats;         // satélites
     uint16_t course_cdeg;  // course en centi-deg (deg*100)
     int32_t  temp_mC;      // temperatura en m°C

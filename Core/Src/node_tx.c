@@ -108,7 +108,7 @@ bool NodeProto_SendData(LoRa *lora, uint16_t batt_mV, uint16_t extra_err_mask, u
 
     // 3) armar payload DATA fijo
     msg_data_pl_t pl = {0};
-    pl.t_ms = HAL_GetTick();
+    pl.utc_time_raw_x1e4 =g.gga.utc_time_raw_x1e3;
 
     if (gps_valid) {
         // IMPORTANTE: para evitar floats en el nodo, asumimos que tu parser GPS
@@ -125,6 +125,7 @@ bool NodeProto_SendData(LoRa *lora, uint16_t batt_mV, uint16_t extra_err_mask, u
         pl.lon_raw_x1e4 = 0;
         pl.sats = 0;
         pl.course_cdeg = 0;
+
     }
 
     pl.temp_mC = temp_valid ? tlast.avg_mC : 0;

@@ -39,17 +39,25 @@ static inline int32_t nmea_to_raw_x1e4(float v, char hemi)
     return out;
 }
 
+static inline int32_t utc_to_raw_x1e3(float utc)
+{
+    int32_t out = (int32_t)(utc * 1000.0f);
+    return out;
+}
+
+
 
 void GPS_Init()
 {
+	GPS_power_on();
 
 	ubx_status_t s;
 
-	    s = gps_send_cfg_retry(GPS_USART, UBX_CFGRATE_5HZ, sizeof(UBX_CFGRATE_5HZ),
+	   /* s = gps_send_cfg_retry(GPS_USART, UBX_CFGRATE_5HZ, sizeof(UBX_CFGRATE_5HZ),
 	                           2, 200, 1200);
 	    if (s != UBX_OK) {
 	    	count_conf++;
-	    }
+	    }*/
 
 	    s =gps_send_cfg_retry(GPS_USART, UBX_CFGMSG_GLL_UART1_OFF_BODY, sizeof(UBX_CFGMSG_GLL_UART1_OFF_BODY), 2, 500, 1200);
 	    if (s != UBX_OK) {
@@ -170,6 +178,7 @@ void GPS_parse(char *GPSstrParse){
 
 		            GGA.lat_raw_x1e4 = nmea_to_raw_x1e4(GGA.nmea_latitude,  GGA.ns);
 		            GGA.lon_raw_x1e4 = nmea_to_raw_x1e4(GGA.nmea_longitude, GGA.ew);
+		            GGA.utc_time_raw_x1e3 = utc_to_raw_x1e3(GGA.utc_time);
 
 		            return;
 
@@ -213,6 +222,16 @@ float GPS_nmea_to_dec(float deg_coord, char nsew) { // el formato NMEA se presen
 		decimal *= -1; // si es norte o oeste es un dato negativo -
 	}
 	return decimal;
+}
+
+
+
+void GPS_power_on(){
+	HAL_GPIO_WritePin(GPIOB, GPS_ENB_Pin, GPIO_PIN_SET);
+}
+
+void GPS_power_off(){
+	HAL_GPIO_WritePin(GPIOB, GPS_ENB_Pin, GPIO_PIN_RESET);
 }
 
 
