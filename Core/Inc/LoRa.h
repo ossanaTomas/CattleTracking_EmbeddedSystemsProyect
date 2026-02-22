@@ -5,7 +5,7 @@
 // |         E-MAIL:  pilot.motlaq@gmail.com        |
 // |                                                |
 // --------------------------------------------------
-
+#pragma once
 #include "main.h"
 
 #define TRANSMIT_TIMEOUT		2000

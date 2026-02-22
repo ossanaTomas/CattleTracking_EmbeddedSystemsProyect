@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <usart.h>
+#include <stdint.h>
 #include "gps.h"
 #include "ubx.h"
 
@@ -26,6 +27,17 @@ int count_confRate_5hz = 0;
 int count_conf = 0;
 int count_confgsa_5hz = 0;
 
+
+
+static inline int32_t nmea_to_raw_x1e4(float v, char hemi)
+{
+    // ddmm.mmmm -> entero ddmm_mmmm (x1e4)
+    // Redondeo seguro  (v >= 0 siempre en NMEA)
+    int32_t out = (int32_t)(v * 100000.0f + 0.5f);
+
+    if (hemi == 'S' || hemi == 'W') out = -out;
+    return out;
+}
 
 
 void GPS_Init()
@@ -150,11 +162,16 @@ int GPS_validate(char *nmeastr){
 }
 
 void GPS_parse(char *GPSstrParse){
-	if(!strncmp(GPSstrParse, "$GPGGA", 6)){ //string compare develve un 0 cuando las cadenas son iguales, por lo que nesesito negarlo prra obterner un 1  y que se cumpla el if
-		if (sscanf(GPSstrParse, "$GPGGA,%f,%f,%c,%f,%c,%d,%d,%f,%f,%c", &GGA.utc_time, &GGA.nmea_latitude, &GGA.ns, &GGA.nmea_longitude, &GGA.ew, &GGA.lock, &GGA.satelites, &GGA.hdop, &GGA.msl_altitude, &GGA.msl_units) >= 1){
-			//GPS.dec_latitude = GPS_nmea_to_dec(GPS.nmea_latitude, GPS.ns);
-			//GPS.dec_longitude = GPS_nmea_to_dec(GPS.nmea_longitude, GPS.ew);
-			return;// aca deberia ver de dejar de usar ssacanf
+	if (!strncmp(GPSstrParse, "$GPGGA", 6)) { //string compare develve un 0 cuando las cadenas son iguales, por lo que nesesito negarlo prra obterner un 1  y que se cumpla el if
+		if (sscanf(GPSstrParse, "$GPGGA,%f,%f,%c,%f,%c,%d,%d,%f,%f,%c",
+		                &GGA.utc_time, &GGA.nmea_latitude, &GGA.ns, &GGA.nmea_longitude,
+		                &GGA.ew, &GGA.lock, &GGA.satelites, &GGA.hdop,
+		                &GGA.msl_altitude, &GGA.msl_units) >= 1) {
+
+		            GGA.lat_raw_x1e4 = nmea_to_raw_x1e4(GGA.nmea_latitude,  GGA.ns);
+		            GGA.lon_raw_x1e4 = nmea_to_raw_x1e4(GGA.nmea_longitude, GGA.ew);
+
+		            return;
 
 		}
 	}

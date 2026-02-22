@@ -24,9 +24,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <string.h>
+#include <stdio.h>
 #include "gps.h"
 #include "service_temp.h"
 #include "LoRa.h"
+#include "node_tx.h"
 
 
 /* USER CODE END Includes */
@@ -50,6 +53,7 @@
 
 /* USER CODE BEGIN PV */
 extern UART_HandleTypeDef huart2;
+extern node_proto_cfg_t s_cfg;
 LoRa myLoRa;
 uint16_t LoRa_stat=0;
 temp_sample_t s;
@@ -101,6 +105,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   GPS_Init();
   TempService_Init(&huart2, DS18B20_RES_10BIT);
+  NodeProto_Init(&s_cfg);
 
 	 myLoRa=newLoRa();
 
@@ -127,7 +132,7 @@ int main(void)
    }
 
 char transmitir[] = {'H','O','L','A'};
-char* payload ="Hola";
+const char payload[] = "Hola";
 
   /* USER CODE END 2 */
 
@@ -139,10 +144,16 @@ char* payload ="Hola";
 
     /* USER CODE BEGIN 3 */
 
-	HAL_Delay(1500);
-	if(LoRa_transmit(&myLoRa, (uint8_t*)&payload, sizeof(payload), 1000)){
-		HAL_GPIO_TogglePin(GPIOC, LED_Pin);
-	}
+	  uint16_t batt_mV = 0;          // si no tenés medición todavía, dejalo 0
+	  uint16_t extra_err = 0;        // acá podés OR-ear ERR_GPS_CFG, etc.
+
+	  if (NodeProto_SendData(&myLoRa, batt_mV, extra_err, 1000)) {
+	      HAL_GPIO_TogglePin(GPIOC, LED_Pin);
+	  } else {
+	      // opcional: mandar un ERR con texto
+	      // NodeProto_SendErrText(&myLoRa, ERR_LORA_TX_TIMEOUT, "TX timeout", 10, 1000);
+	  }
+	  HAL_Delay(1500);
 	//TempService_ReadOnce_Blocking(&s);
 
   }

@@ -52,12 +52,16 @@ typedef struct{
 	    float nmea_longitude;
 	    float nmea_latitude;
 	    float utc_time;
-	    char ns, ew;
+	    char ns;
+	    char ew;
 	    int lock;
 	    int satelites;
 	    float hdop;
 	    float msl_altitude;
 	    char msl_units;
+
+	    int32_t lat_raw_x1e4;
+	    int32_t lon_raw_x1e4;
 } GPS_GGA;
 
 typedef struct {
