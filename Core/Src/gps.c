@@ -33,7 +33,7 @@ static inline int32_t nmea_to_raw_x1e4(float v, char hemi)
 {
     // ddmm.mmmm -> entero ddmm_mmmm (x1e4)
     // Redondeo seguro  (v >= 0 siempre en NMEA)
-    int32_t out = (int32_t)(v * 100000.0f + 0.5f);
+    int32_t out = (int32_t)(v * 10000.0f + 0.5f);
 
     if (hemi == 'S' || hemi == 'W') out = -out;
     return out;
