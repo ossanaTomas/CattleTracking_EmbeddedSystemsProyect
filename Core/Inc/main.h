@@ -66,6 +66,8 @@ void Error_Handler(void);
 #define DIO0_Pin GPIO_PIN_10
 #define DIO0_GPIO_Port GPIOB
 #define DIO0_EXTI_IRQn EXTI15_10_IRQn
+#define GPS_ENB_Pin GPIO_PIN_11
+#define GPS_ENB_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

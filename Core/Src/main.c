@@ -17,6 +17,7 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <node.h>
 #include "main.h"
 #include "spi.h"
 #include "usart.h"
@@ -29,7 +30,6 @@
 #include "gps.h"
 #include "service_temp.h"
 #include "LoRa.h"
-#include "node_tx.h"
 
 
 /* USER CODE END Includes */
@@ -53,7 +53,6 @@
 
 /* USER CODE BEGIN PV */
 extern UART_HandleTypeDef huart2;
-extern node_proto_cfg_t s_cfg;
 LoRa myLoRa;
 uint16_t LoRa_stat=0;
 temp_sample_t s;
@@ -98,29 +97,29 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI1_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
-
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
   GPS_Init();
   TempService_Init(&huart2, DS18B20_RES_10BIT);
-  NodeProto_Init(&s_cfg);
+  // Simple app init after LoRa init
+
 
 	 myLoRa=newLoRa();
 
-	  myLoRa.CS_port         = NSS_GPIO_Port;
-	  myLoRa.CS_pin          = NSS_Pin;
-	  myLoRa.reset_port      = RST_GPIO_Port;
-	  myLoRa.reset_pin       = RST_Pin;
-	  myLoRa.DIO0_port       = DIO0_GPIO_Port;
-	  myLoRa.DIO0_pin        = DIO0_Pin;
-	  myLoRa.hSPIx           = &hspi1;
+	 myLoRa.CS_port         = NSS_GPIO_Port;
+	 myLoRa.CS_pin          = NSS_Pin;
+	 myLoRa.reset_port      = RST_GPIO_Port;
+	 myLoRa.reset_pin       = RST_Pin;
+	 myLoRa.DIO0_port       = DIO0_GPIO_Port;
+	 myLoRa.DIO0_pin        = DIO0_Pin;
+	 myLoRa.hSPIx           = &hspi1;
 
 	HAL_Delay(50);
 
 	LoRa_stat = 0;
-	for (int i = 0; i < 1; i++) {
+	for (int i = 0; i < 50; i++) {
 	    if (LoRa_init(&myLoRa) == LORA_OK) { LoRa_stat = 1; break; }
 	    HAL_Delay(50);
 	}
@@ -131,8 +130,10 @@ int main(void)
 	   }
    }
 
-char transmitir[] = {'H','O','L','A'};
-const char payload[] = "Hola";
+
+
+  // ---- Simple app init ----
+  NodeSimple_Init(&myLoRa, 1 /*node_id*/, 0x27 /*net_id*/);
 
   /* USER CODE END 2 */
 
@@ -143,17 +144,8 @@ const char payload[] = "Hola";
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  NodeSimple_Task();
 
-	  uint16_t batt_mV = 0;          // si no tenés medición todavía, dejalo 0
-	  uint16_t extra_err = 0;        // acá podés OR-ear ERR_GPS_CFG, etc.
-
-	  if (NodeProto_SendData(&myLoRa, batt_mV, extra_err, 1000)) {
-	      HAL_GPIO_TogglePin(GPIOC, LED_Pin);
-	  } else {
-	      // opcional: mandar un ERR con texto
-	      // NodeProto_SendErrText(&myLoRa, ERR_LORA_TX_TIMEOUT, "TX timeout", 10, 1000);
-	  }
-	  HAL_Delay(1500);
 	//TempService_ReadOnce_Blocking(&s);
 
   }
@@ -192,7 +184,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -210,6 +202,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	//si se recibe una interrupcion del pin dio0, es que llego un mensaje
 	//lo guardo en el buffer y activo la flag para decodificarlo.
 	if (GPIO_Pin==DIO0_Pin){
+	NodeSimple_OnDIO0IRQ();
 		//LoRa_receive(&myLoRa,RxBuffer,sizeof(Mytrama));
 		//FlagRecibir=1;
 	}

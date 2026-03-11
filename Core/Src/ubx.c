@@ -76,7 +76,7 @@ const uint8_t UBX_CFGNAV5_CATTLE_BODY[40] = {
 
      0x41, 0x00,               // mask = 0x0041 -> dynModel + staticHoldThresh
      0x03,                     // dynModel = 3 (Pedestrian)
-     0x00,                     // fixMode (no aplicado)
+     0x00,                     
 
      0x00, 0x00, 0x00, 0x00,
      0x00, 0x00, 0x00, 0x00,
@@ -207,7 +207,7 @@ static ubx_status_t ubx_wait_ack(UART_HandleTypeDef *huart,
 
  void ubx_uart_recover(UART_HandleTypeDef *huart, uint32_t drain_ms)
  {
-     // Por si en algún momento llamás esto en caliente con RX IT activo
+     
      HAL_UART_AbortReceive_IT(huart);
 
      // Limpieza de flags típicos de UART
