@@ -1,0 +1,5 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "Kicad-STM32")(type "KiCad")(uri "D:/UCC/UNIVERSIDAD 2024/Segundo Semestre/Programacion de sistemas embebidos/Datashets, blue pill/EsquematicoBluepill/Kicad-STM32/Kicad-STM32.pretty")(options "")(descr ""))
+  (lib (name "MiFootprints")(type "KiCad")(uri "${KIPRJMOD}/MiFootprints.pretty")(options "")(descr ""))
+)
