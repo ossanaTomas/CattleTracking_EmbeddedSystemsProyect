@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+  .title { font-weight:900; font-size:22px; }
+  .subtitle { font-size:12px; opacity:.8; }
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+  @media (max-width: 1000px){ .grid { grid-template-columns: 1fr; } }
+  .formRow { display:grid; grid-template-columns: 220px 1fr; gap:10px; align-items:center; margin:10px 0; }
+  @media (max-width: 700px){ .formRow { grid-template-columns: 1fr; } }
+  .help { font-size:12px; opacity:.75; margin-top:4px; }
+  .help b { opacity:.9; }
+  .box { border:1px solid rgba(0,0,0,.08); border-radius:16px; padding:12px; background: rgba(255,255,255,.88); }
+  input, select { border-radius:12px; border:1px solid rgba(0,0,0,.12); background: rgba(255,255,255,.95); }
+  button { border-radius:12px; border:1px solid rgba(0,0,0,.12); background: #0d6b2b; color:#fff; font-weight:900; padding:10px 14px; }
+  button.secondary { background: rgba(255,255,255,.9); color:#0d6b2b; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="card" style="border:none; background: linear-gradient(135deg, rgba(2,85,2,.14), rgba(2,85,2,.04));">
+  <div class="title">Cambiar modo de operación</div>
+  <div class="subtitle">Enviá un comando a la base para cambiar el comportamiento de un nodo (CONT / LP).</div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div style="font-weight:900; font-size:18px;">Enviar configuración</div>
+    <div class="subtitle" style="margin-top:4px;">Completá los campos y presioná <b>Enviar</b>.</div>
+
+    <div class="box" style="margin-top:12px;">
+      <div class="formRow">
+        <div><b>Nodo destino</b></div>
+        <div>
+          <select id="nodeSel" style="width:100%"></select>
+          <div class="help">Seleccioná el nodo al que querés aplicar el cambio. <b>Nota:</b> con el firmware actual de la base, el CFG se envía al nodo 1 (el selector queda listo para cuando agreguemos addressing).</div>
+        </div>
+      </div>
+
+      <div class="formRow">
+        <div><b>Modo</b></div>
+        <div>
+          <select id="modeSel" onchange="onModeChange()" style="width:100%">
+            <option value="CONT">CONT (continuo)</option>
+            <option value="LP">LP (bajo consumo)</option>
+          </select>
+          <div class="help"><b>CONT</b>: el nodo envía periódicamente (modo demo). <b>LP</b>: el nodo duerme y despierta por intervalos.</div>
+        </div>
+      </div>
+
+      <div class="formRow">
+        <div><b>intervalo</b> (LP)</div>
+        <div>
+          <input id="lpInterval" value="15" style="width:100%" />
+          <div class="help">Tiempo entre mediciones y envíos en <b>minutos</b>. (Por detrás se convierte a segundos para el comando <b>LP</b>). Ej: 15 = 15 min.</div>
+        </div>
+      </div>
+
+      <div class="formRow">
+        <div><b>prewarm_s</b> (LP)</div>
+        <div>
+          <input id="lpPrewarm" value="50" style="width:100%" />
+          <div class="help">Tiempo (s) que el GPS se enciende antes de intentar un fix. Ayuda a estabilizar.</div>
+        </div>
+      </div>
+
+      <div class="formRow">
+        <div><b>extra_s</b> (LP)</div>
+        <div>
+          <input id="lpExtra" value="120" style="width:100%" />
+          <div class="help">Tiempo (s) adicional para buscar fix / completar medición antes de volver a dormir.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+        <button onclick="sendCmd()">Enviar</button>
+        <button class="secondary" onclick="window.location.href='/dashboard'">Volver al dashboard</button>
+      </div>
+
+      <div class="help" style="margin-top:10px;">
+        <b>(*) ¿Cuándo se aplica el cambio?</b><br/>
+        La PC envía el comando a la <b>Base por USB</b>. La base guarda la configuración como “pendiente” y la transmite al nodo
+        <b>apenas recibe el próximo DATA</b> de ese nodo (para aprovechar la ventana RX). Si el nodo no lo recibe en esa ventana,
+        se reintenta en el próximo ciclo.
+      </div>
+
+      <div class="mono" id="res" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:900; font-size:18px;">Estado rápido</div>
+    <div class="subtitle" style="margin-top:4px;">Para verificar que el comando se esté enviando.</div>
+
+    <div class="box" style="margin-top:12px;">
+      <div><b>Serial</b></div>
+      <div id="serial" class="mono" style="margin-top:8px;">—</div>
+      <div class="help" id="serialHint" style="margin-top:10px;">—</div>
+    </div>
+
+    <div class="box" style="margin-top:12px;">
+      <div><b>Nodos</b></div>
+      <div id="nodes" class="mono" style="margin-top:8px;">—</div>
+      <div class="help" style="margin-top:10px;">Tip: mirá el dashboard para ver si cambia el patrón de muestras (intervalos).</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function onModeChange(){
+  const mode = document.getElementById('modeSel').value;
+  const en = (mode === 'LP');
+  for (const id of ['lpInterval','lpPrewarm','lpExtra']){
+    const el = document.getElementById(id);
+    el.disabled = !en;
+    el.style.opacity = en ? '1' : '.55';
+  }
+}
+
+async function loadNodes(){
+  const nodes = await fetch('/api/nodes').then(r=>r.json());
+  const sel = document.getElementById('nodeSel');
+  sel.innerHTML = '';
+  if (!nodes.length){
+    // fallback: allow node 1
+    const opt = document.createElement('option');
+    opt.value = '1'; opt.textContent = '1 — Animal 1';
+    sel.appendChild(opt);
+    return;
+  }
+  for (const n of nodes){
+    const opt = document.createElement('option');
+    opt.value = String(n.id);
+    opt.textContent = `${n.id} — ${n.name || ('Animal '+n.id)}`;
+    sel.appendChild(opt);
+  }
+}
+
+async function refreshStatus(){
+  const s = await fetch('/api/status/serial').then(r=>r.json());
+  document.getElementById('serial').textContent = JSON.stringify(s, null, 2);
+  document.getElementById('serialHint').textContent = s.connected ? `Conectado a ${s.port}. Última RX: ${Math.round((Date.now()/1000)-(s.last_rx_ts||0))} s.` : `No conectado. Revisá el puerto/baudios.`;
+
+  const nodes = await fetch('/api/nodes').then(r=>r.json());
+  document.getElementById('nodes').textContent = JSON.stringify(nodes, null, 2);
+}
+
+async function sendCmd(){
+  const node = document.getElementById('nodeSel').value;
+  const mode = document.getElementById('modeSel').value;
+  let cmd = 'CONT';
+  if (mode === 'LP'){
+    // UI en minutos -> firmware espera segundos
+    const intervalMinRaw = (document.getElementById('lpInterval').value || '').trim() || '15';
+    const intervalMin = Number(intervalMinRaw.replace(',', '.'));
+    const intervalSec = (Number.isFinite(intervalMin) && intervalMin > 0)
+      ? String(Math.round(intervalMin * 60))
+      : '900';
+    const prewarm = (document.getElementById('lpPrewarm').value || '').trim() || '50';
+    const extra = (document.getElementById('lpExtra').value || '').trim() || '120';
+    cmd = `LP ${intervalSec} ${prewarm} ${extra}`;
+  }
+
+  const res = await fetch(`/api/nodes/${node}/command`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({command: cmd})
+  }).then(r=>r.json());
+
+  document.getElementById('res').textContent = JSON.stringify(res, null, 2);
+}
+
+loadNodes().then(()=>{ onModeChange(); refreshStatus(); });
+setInterval(refreshStatus, 2000);
+</script>
+
+{% endblock %}

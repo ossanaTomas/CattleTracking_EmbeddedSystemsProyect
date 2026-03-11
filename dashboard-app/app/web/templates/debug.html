@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <div class="row">
+    <div class="col">
+      <h3>Serial</h3>
+      <div id="serial" class="mono">...</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Latest frames</h3>
+  <table>
+    <thead>
+      <tr><th>Time (Local)</th><th>Time (UTC)</th><th>Node</th><th>Seq</th><th>Flags</th><th>Err</th><th>Temp (°C)</th><th>Lat</th><th>Lon</th><th>Raw</th></tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+
+<script>
+async function refresh(){
+  const s = await fetch('/api/status/serial').then(r=>r.json());
+  document.getElementById('serial').textContent = JSON.stringify(s, null, 2);
+
+  const all = await fetch('/api/frames/latest?limit=120').then(r=>r.json());
+
+  const tb = document.getElementById('rows');
+  tb.innerHTML = '';
+  for (const f of all){
+    const d = new Date(f.t);
+    const dtUTC = d.toISOString();
+    const dtLocal = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,'0')+"-"+String(d.getDate()).padStart(2,'0')+" "+String(d.getHours()).padStart(2,'0')+":"+String(d.getMinutes()).padStart(2,'0')+":"+String(d.getSeconds()).padStart(2,'0');
+    const temp = (f.temp_c==null)?'':(f.temp_c).toFixed(3);
+    const lat = f.lat==null?'':f.lat.toFixed(6);
+    const lon = f.lon==null?'':f.lon.toFixed(6);
+    const raw = (f.raw||'').slice(0, 80) + ((f.raw||'').length>80?'…':'');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${dtLocal}</td><td>${dtUTC}</td><td>${f.node_id}</td><td>${f.seq}</td><td class="mono">0x${(f.flags??0).toString(16).padStart(2,'0')}</td><td class="mono">0x${(f.err_mask??0).toString(16).padStart(4,'0')}</td><td>${temp}</td><td>${lat}</td><td>${lon}</td><td class="mono">${raw}</td>`;
+    tb.appendChild(tr);
+  }
+}
+refresh();
+setInterval(refresh, 2000);
+</script>
+{% endblock %}

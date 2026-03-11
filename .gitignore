@@ -5,8 +5,8 @@
 *.launch
 
 # ==== Build outputs ====
-/Debug/
-/Release/
+**/Debug/
+**/Release/
 /build/
 cmake-build-*/
 
@@ -30,7 +30,55 @@ cmake-build-*/
 # ==== Editor / SO ====
 .vscode/
 .idea/
+.venv
+.db
 .DS_Store
 Thumbs.db
 *~
 *.swp
+
+
+ =========================
+# OS / Explorer
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Python
+# =========================
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache/
+**/.mypy_cache/
+**/.venv/
+**/venv/
+**/.env
+
+# =========================
+# Local databases
+# =========================
+**/*.db
+**/*.sqlite3
+
+# =========================
+# Logs
+# =========================
+**/*.log
+
+# KiCad local / generated files
+**/*-backups/
+**/*.kicad_prl
+**/*.kicad_sch-bak
+**/fp-info-cache
+**/*.lck
+**/~*.lck
+**/~*.kicad_pcb.lck
+
+# KiCad fabrication outputs
+**/*.gbr
+**/*.gbrjob
+**/*.drl
+**/*.zip
