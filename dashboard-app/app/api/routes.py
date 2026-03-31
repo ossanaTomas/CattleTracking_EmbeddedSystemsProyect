@@ -55,14 +55,11 @@ def latest(node_id: int, db: Session = Depends(get_db)):
 
 @router.get("/nodes/{node_id}/history", response_model=List[FrameOut])
 def history(node_id: int, hours: int = 24, limit: int = 2000, db: Session = Depends(get_db)):
-    since = datetime.utcnow() - timedelta(hours=hours)
-    q = (
-        select(models.Frame)
-        .where(models.Frame.node_id == node_id)
-        .where(models.Frame.received_at >= since)
-        .order_by(models.Frame.received_at.desc())
-        .limit(limit)
-    )
+    q = select(models.Frame).where(models.Frame.node_id == node_id)
+    if hours > 0:
+        since = datetime.utcnow() - timedelta(hours=hours)
+        q = q.where(models.Frame.received_at >= since)
+    q = q.order_by(models.Frame.received_at.desc()).limit(limit)
     rows = db.execute(q).scalars().all()
     return [FrameOut.model_validate(r) for r in rows]
 
@@ -167,15 +164,11 @@ def field_summary(request: Request, active_minutes: int = 30, db: Session = Depe
 @router.get("/nodes/{node_id}/temp_series")
 def temp_series(node_id: int, hours: int = 24, limit: int = 4000, db: Session = Depends(get_db)):
     """Temperature time series for charts."""
-    since = datetime.utcnow() - timedelta(hours=hours)
-    q = (
-        select(models.Frame)
-        .where(models.Frame.node_id == node_id)
-        .where(models.Frame.received_at >= since)
-        .where(models.Frame.temp_mC.is_not(None))
-        .order_by(models.Frame.received_at.asc())
-        .limit(limit)
-    )
+    q = select(models.Frame).where(models.Frame.node_id == node_id).where(models.Frame.temp_mC.is_not(None))
+    if hours > 0:
+        since = datetime.utcnow() - timedelta(hours=hours)
+        q = q.where(models.Frame.received_at >= since)
+    q = q.order_by(models.Frame.received_at.asc()).limit(limit)
     rows = db.execute(q).scalars().all()
     out = []
     for fr in rows:
@@ -194,16 +187,16 @@ def temp_series(node_id: int, hours: int = 24, limit: int = 4000, db: Session = 
 @router.get("/nodes/{node_id}/positions")
 def positions(node_id: int, hours: int = 24, limit: int = 4000, db: Session = Depends(get_db)):
     """GPS positions for the map."""
-    since = datetime.utcnow() - timedelta(hours=hours)
     q = (
         select(models.Frame)
         .where(models.Frame.node_id == node_id)
-        .where(models.Frame.received_at >= since)
         .where(models.Frame.lat_deg.is_not(None))
         .where(models.Frame.lon_deg.is_not(None))
-        .order_by(models.Frame.received_at.asc())
-        .limit(limit)
     )
+    if hours > 0:
+        since = datetime.utcnow() - timedelta(hours=hours)
+        q = q.where(models.Frame.received_at >= since)
+    q = q.order_by(models.Frame.received_at.asc()).limit(limit)
     rows = db.execute(q).scalars().all()
     out = []
     for fr in rows:

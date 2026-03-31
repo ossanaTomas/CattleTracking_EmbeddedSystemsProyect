@@ -1,9 +1,5 @@
 # Cattle Tracking System — Embedded Systems Project
 
-> **Academic project** developed for the *Programación de Sistemas Embebidos* course at **Universidad Católica de Córdoba (UCC)**, Argentina.
-> The system was delivered incrementally across two partial evaluations and presented as a fully working prototype.
-
----
 
 ## Table of Contents
 
@@ -372,6 +368,12 @@ typedef struct {
 
 A Python web application that receives telemetry from the base station and exposes it through a browser-based interface.
 
+<p align="center">
+  <img src="dashboard-app/images/dashboard1.png" alt="Base Station PCB Front" width="85%" />
+  <img src="dashboard-app/images/dashboard2.png" alt="Base Station PCB Back" width="85%" />
+  <img src="dashboard-app/images/dashboard4.png" alt="Base Station PCB Back" width="85%" />
+</p>
+
 ### Architecture
 
 ```
@@ -471,15 +473,9 @@ The complete system was presented and demonstrated working as the final exam.
 
 Computer Engineering student — Universidad Católica de Córdoba (UCC), Argentina.
 
-This project was built for educational purposes and puts into practice fundamental concepts acquired throughout the course and the degree, spanning both software and hardware development:
+This project was built for educational purposes and puts into practice fundamental concepts acquired throughout the course and the degree, spanning both software and hardware development. 
 
-- **Layered software architecture** — clean separation of HAL, protocol, service, and application layers in bare-metal C
-- **Communication protocols** — design and implementation of a custom binary protocol with Stop-and-Wait ARQ, CRC16, and piggybacked configuration frames
-- **Hardware modules & peripherals** — LoRa (SX127x over SPI), GPS (NMEA/UBX over UART), DS18B20 temperature sensor (OneWire over UART), and USB CDC
-- **Hardware design** — schematic capture and PCB layout in KiCad, board fabrication, and hand soldering
-- **Web development** — backend application with FastAPI, SQLAlchemy, and a real-time telemetry dashboard
-
-It was a challenging, integrative, and genuinely enjoyable project from start to finish. Every subsystem came with its own set of obstacles, and solving them was just as satisfying as watching the complete system work end to end.
+It was a challenging, integrative, and genuinely enjoyable project from start to finish. Every module integration came with its own set of obstacles, and solving them was just as satisfying as watching the complete system work end to end. I leaned and enjoy a lot during this subjet and that's the most important of all!! 
 
 ---
 *Universidad Católica de Córdoba — Ingeniería en Computación — 2025*
